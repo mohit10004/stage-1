@@ -42,4 +42,4 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             unzip -o /tmp/site.zip -d /var/www/html/
-            sudo systemctl reload apache
+            sudo systemctl reload apache2
