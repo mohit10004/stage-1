@@ -1,4 +1,4 @@
-name: Deploy Static HTML to EC2
+name: Deploy Static HTML to EC2 via SSM (OIDC Only)
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials via OIDC
@@ -22,24 +22,21 @@ jobs:
           role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_OIDC_DEPLOY_ROLE
           aws-region: us-east-1
 
-      - name: Zip static site (dev folder)
-        run: zip -r site.zip ./dev
+      - name: Zip static site
+        run: cd dev && zip -r ../site.zip . && cd ..
 
-      - name: Upload site to EC2 via SCP
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "site.zip"
-          target: "/tmp"
+      - name: Upload artifact to S3 (for EC2 to pull)
+        run: aws s3 cp site.zip s3://YOUR_BUCKET_NAME/site.zip
 
-      - name: Deploy on EC2 and reload web server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            unzip -o /tmp/site.zip -d /var/www/html/
-            sudo systemctl reload apache2
+      - name: Deploy to EC2 via SSM
+        run: |
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=instanceIds,Values=i-0abc12345def67890" \
+            --comment "Deploy static site via OIDC" \
+            --parameters 'commands=[
+              "aws s3 cp s3://YOUR_BUCKET_NAME/site.zip /tmp/site.zip",
+              "unzip -o /tmp/site.zip -d /var/www/html/",
+              "systemctl reload apache2"
+            ]' \
+            --region us-east-1
