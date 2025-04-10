@@ -1,4 +1,4 @@
-name: Deploy Static HTML to EC2 via SSM (OIDC Only)
+name: Pull Code to EC2 via SSM (OIDC Only)
 
 on:
   push:
@@ -13,30 +13,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/YOUR_OIDC_DEPLOY_ROLE
-          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::779846824575:role/dev-test
+          aws-region: us-west-2
 
-      - name: Zip static site
-        run: cd dev && zip -r ../site.zip . && cd ..
-
-      - name: Upload artifact to S3 (for EC2 to pull)
-        run: aws s3 cp site.zip s3://YOUR_BUCKET_NAME/site.zip
-
-      - name: Deploy to EC2 via SSM
+      - name: Pull code on EC2 via SSM
         run: |
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --targets "Key=instanceIds,Values=i-0abc12345def67890" \
-            --comment "Deploy static site via OIDC" \
+            --targets "Key=instanceIds,Values=i-0e5068542b0d073d6" \
+            --comment "Git pull from GitHub repo into /home/ubuntu" \
             --parameters 'commands=[
-              "aws s3 cp s3://YOUR_BUCKET_NAME/site.zip /tmp/site.zip",
-              "unzip -o /tmp/site.zip -d /var/www/html/",
-              "systemctl reload apache2"
+              "cd /home/ubuntu",
+              "if [ ! -d stage-1 ]; then git clone https://github.com/mohit10004/stage-1.git; else cd stage-1 && git pull; fi"
             ]' \
-            --region us-east-1
+            --region us-west-2 \
+            --output text
