@@ -23,7 +23,7 @@ jobs:
         run: |
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --targets "Key=instanceIds,Values=i-07207b103c9079d64" \
+            --targets "Key=instanceIds,Values=i-07a8873ac1a1dc511" \
             --comment "Git pull from GitHub repo into /home/ubuntu" \
             --parameters 'commands=[
               "cd /home/ubuntu",
